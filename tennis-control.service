@@ -1,0 +1,23 @@
+[Unit]
+Description=Tennis Motor Web Control Panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+SupplementaryGroups=i2c
+WorkingDirectory=/home/pi/Tennis
+Environment=HOME=/home/pi
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/home/pi/.local/bin/tennis off
+ExecStart=/usr/bin/python3 -u /home/pi/Tennis/control_server.py
+ExecStop=/home/pi/.local/bin/tennis off
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=15
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07130e">
+  <title>Tennis Motor Control</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06110c;
+      --panel: #0d2017;
+      --panel-2: #102a1d;
+      --line: #244b36;
+      --text: #f3f8f4;
+      --muted: #9db4a5;
+      --green: #68df83;
+      --lime: #d5f34a;
+      --red: #ff4d57;
+      --red-dark: #7a1520;
+      --amber: #ffc65b;
+      --shadow: 0 18px 50px rgba(0,0,0,.34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(75,189,104,.18), transparent 36rem),
+        linear-gradient(145deg, #06110c, #091711 55%, #040b08);
+      color: var(--text);
+    }
+    button { font: inherit; }
+    .shell { width: min(1050px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 46px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-ball { font-size: 38px; filter: drop-shadow(0 5px 12px rgba(213,243,74,.25)); }
+    h1 { margin: 0; font-size: clamp(23px, 4vw, 34px); letter-spacing: -.025em; }
+    .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .connection { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: rgba(11,30,20,.8); border-radius: 999px; padding: 9px 13px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #68756c; box-shadow: 0 0 0 4px rgba(104,117,108,.12); }
+    .connection.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(104,223,131,.14), 0 0 14px rgba(104,223,131,.55); }
+    .connection.offline { color: #ffb1b5; border-color: rgba(255,77,87,.55); background: rgba(68,10,16,.72); }
+    .connection.offline .dot { background: var(--red); box-shadow: 0 0 0 4px rgba(255,77,87,.12); }
+    .grid { display: grid; grid-template-columns: 1.3fr .7fr; gap: 18px; }
+    .card { border: 1px solid var(--line); background: linear-gradient(160deg, rgba(17,44,30,.96), rgba(8,25,16,.96)); border-radius: 20px; box-shadow: var(--shadow); }
+    .status-card { padding: 26px; position: relative; overflow: hidden; min-height: 240px; }
+    .status-card::after { content: ""; position: absolute; width: 240px; height: 240px; right: -70px; top: -90px; border-radius: 50%; background: radial-gradient(circle, rgba(213,243,74,.16), transparent 68%); pointer-events: none; }
+    .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .13em; font-size: 11px; font-weight: 800; }
+    .state-row { display: flex; align-items: center; gap: 16px; margin: 15px 0 22px; }
+    .state-light { width: 19px; height: 19px; border-radius: 50%; background: #738078; box-shadow: 0 0 0 8px rgba(115,128,120,.12); }
+    .running .state-light { background: var(--lime); box-shadow: 0 0 0 8px rgba(213,243,74,.13), 0 0 28px rgba(213,243,74,.6); }
+    .state-label { font-size: clamp(34px, 7vw, 60px); font-weight: 900; line-height: .95; letter-spacing: -.05em; }
+    .state-label .safe { color: var(--green); }
+    .running .state-label .safe { color: var(--lime); }
+    .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .fact { background: rgba(4,14,9,.55); border: 1px solid rgba(64,103,77,.55); border-radius: 13px; padding: 12px; }
+    .fact-label { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+    .fact-value { font-weight: 800; font-size: 15px; }
+    .court { height: 96px; margin-top: 18px; border: 2px solid rgba(104,223,131,.42); border-radius: 10px; position: relative; opacity: .34; transition: opacity .2s; }
+    .running .court { opacity: 1; }
+    .court::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px solid rgba(104,223,131,.42); }
+    .court::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px solid rgba(104,223,131,.42); }
+    .moving-ball { position: absolute; z-index: 2; top: 19px; left: 7%; width: 17px; height: 17px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 18px rgba(213,243,74,.55); }
+    .running .moving-ball { animation: rally 2.4s ease-in-out infinite alternate; }
+    @keyframes rally { to { left: calc(93% - 17px); top: 61px; } }
+    .stop-card { padding: 20px; display: flex; flex-direction: column; }
+    .stop-button { flex: 1; min-height: 170px; width: 100%; border: 2px solid #ff737b; border-radius: 18px; color: white; cursor: pointer; background: radial-gradient(circle at 50% 35%, #ff5862, #d3202c 62%, #85101a); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 13px 30px rgba(211,32,44,.32); transition: transform .08s, filter .15s; }
+    .stop-button:hover { filter: brightness(1.08); }
+    .stop-button:active { transform: scale(.975); }
+    .stop-icon { display: block; font-size: 42px; line-height: 1; }
+    .stop-title { display: block; font-size: 28px; font-weight: 950; margin-top: 8px; }
+    .stop-note { display: block; font-size: 12px; opacity: .86; margin-top: 5px; }
+    .stop-help { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 13px 4px 0; }
+    .controls { margin-top: 18px; padding: 24px; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    h2 { margin: 0; font-size: 19px; }
+    .section-note { color: var(--muted); font-size: 12px; }
+    .sliders { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+    .slider-control { display: block; border: 1px solid rgba(64,103,77,.65); border-radius: 15px; background: rgba(4,14,9,.48); padding: 15px; }
+    .slider-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    .slider-name { font-size: 13px; font-weight: 800; }
+    .slider-value { min-width: 54px; border-radius: 999px; background: rgba(104,223,131,.14); color: var(--green); padding: 5px 8px; text-align: center; font-size: 13px; font-weight: 900; }
+    input[type="range"] { width: 100%; margin: 0; accent-color: var(--lime); cursor: pointer; }
+    input[type="range"]:disabled { opacity: .4; cursor: not-allowed; }
+    .slider-scale { display: flex; justify-content: space-between; margin-top: 7px; color: var(--muted); font-size: 10px; }
+    .modes { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .mode { text-align: left; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,35,23,.72); color: var(--text); padding: 18px; cursor: pointer; transition: border-color .15s, transform .1s, background .15s; }
+    .mode:hover { border-color: var(--green); background: rgba(18,54,34,.86); transform: translateY(-1px); }
+    .mode:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .mode-name { display: flex; align-items: center; justify-content: space-between; font-size: 19px; font-weight: 900; }
+    .mode-tag { color: #092212; background: var(--lime); font-size: 10px; padding: 5px 8px; border-radius: 999px; letter-spacing: .08em; }
+    .mode p { color: var(--muted); line-height: 1.55; font-size: 13px; margin: 10px 0 0; }
+    .safety { margin-top: 18px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; border-color: rgba(255,198,91,.35); background: rgba(61,43,10,.42); }
+    .safety-icon { font-size: 23px; }
+    .safety strong { color: var(--amber); display: block; margin-bottom: 5px; }
+    .safety p { margin: 0; color: #d8c9a9; font-size: 13px; line-height: 1.55; }
+    .event { margin-top: 14px; color: var(--muted); font-size: 12px; text-align: center; min-height: 18px; }
+    .event.error { color: #ff959b; font-weight: 700; }
+    dialog { color: var(--text); width: min(520px, calc(100% - 28px)); border: 1px solid var(--line); border-radius: 20px; background: #0d2117; box-shadow: 0 30px 80px rgba(0,0,0,.65); padding: 0; }
+    dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(3px); }
+    .dialog-body { padding: 25px; }
+    .dialog-body h3 { margin: 0 0 8px; font-size: 23px; }
+    .dialog-body > p { color: var(--muted); line-height: 1.55; margin: 0 0 18px; }
+    .check { display: flex; gap: 11px; align-items: flex-start; background: rgba(5,15,10,.65); border: 1px solid var(--line); border-radius: 13px; padding: 14px; line-height: 1.45; font-size: 14px; }
+    .check input { width: 20px; height: 20px; accent-color: var(--green); flex: 0 0 auto; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .secondary, .confirm { border-radius: 11px; border: 1px solid var(--line); padding: 11px 17px; color: var(--text); cursor: pointer; }
+    .secondary { background: #14271d; }
+    .confirm { background: var(--green); color: #04200c; border-color: var(--green); font-weight: 900; }
+    .confirm:disabled { opacity: .35; cursor: not-allowed; }
+    .busy .mode, .busy .stop-button, .busy .sliders { pointer-events: none; filter: grayscale(.5); opacity: .55; }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 20px, 680px); padding-top: 16px; }
+      header { align-items: flex-start; }
+      .subtitle { display: none; }
+      .grid { grid-template-columns: 1fr; }
+      .stop-button { min-height: 130px; }
+      .modes { grid-template-columns: 1fr; }
+      .sliders { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: 1fr 1fr; }
+      .facts .fact:last-child { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" id="app">
+    <header>
+      <div class="brand">
+        <div class="brand-ball">🎾</div>
+        <div><h1>Tennis Motor Control</h1><div class="subtitle">Raspberry Pi · PCA9685 · Local safety control</div></div>
+      </div>
+      <div class="connection offline" id="connection" role="status" aria-live="polite"><span class="dot"></span><span id="connectionText">Connecting…</span></div>
+    </header>
+
+    <section class="grid">
+      <article class="card status-card" id="statusCard">
+        <div class="eyebrow">System status</div>
+        <div class="state-row"><span class="state-light"></span><div class="state-label"><span class="safe" id="stateText">Loading</span></div></div>
+        <div class="facts">
+          <div class="fact"><div class="fact-label">Current mode</div><div class="fact-value" id="modeText">—</div></div>
+          <div class="fact"><div class="fact-label">Run time</div><div class="fact-value" id="elapsedText">00:00</div></div>
+          <div class="fact"><div class="fact-label">Disconnect protection</div><div class="fact-value" id="watchdogText">Waiting</div></div>
+        </div>
+        <div class="court"><span class="moving-ball"></span></div>
+      </article>
+
+      <aside class="card stop-card">
+        <button class="stop-button" id="stopButton" type="button">
+          <span class="stop-icon">■</span><span class="stop-title">EMERGENCY STOP</span><span class="stop-note">Ends all controllers and forces all 16 channels off</span>
+        </button>
+        <p class="stop-help">Press at any time. This performs a hardware-level reset and does not depend on the current mode or PID file.</p>
+      </aside>
+    </section>
+
+    <section class="card controls">
+      <div class="section-title"><h2>Set output</h2><span class="section-note">Sliders do not drive motors until Start is confirmed</span></div>
+      <div class="sliders">
+        <label class="slider-control" for="ch2Slider">
+          <span class="slider-head"><span class="slider-name">STP2 / Channel 2 · Stronger motor</span><output class="slider-value" id="ch2Value">30%</output></span>
+          <input id="ch2Slider" type="range" min="0" max="100" step="1" value="30">
+          <span class="slider-scale"><span>0%</span><span>100% max</span></span>
+        </label>
+        <label class="slider-control" for="ch4Slider">
+          <span class="slider-head"><span class="slider-name">STP4 / Channel 4</span><output class="slider-value" id="ch4Value">30%</output></span>
+          <input id="ch4Slider" type="range" min="0" max="100" step="1" value="30">
+          <span class="slider-scale"><span>0%</span><span>100% max</span></span>
+        </label>
+      </div>
+      <div class="section-title"><h2>Start motors</h2><span class="section-note">Both channels start together · safety confirmation required</span></div>
+      <div class="modes">
+        <button class="mode" data-mode="steady" type="button">
+          <span class="mode-name">START STP2 + STP4 <span class="mode-tag">CONTINUOUS</span></span>
+          <p id="steadyDescription">Both channels start together and stay at the selected outputs until Stop is pressed or the page disconnects.</p>
+        </button>
+      </div>
+    </section>
+
+    <section class="card safety">
+      <div class="safety-icon">⚠️</div>
+      <div><strong>Automatic stop on disconnect</strong><p>Keep this page open after starting. If the browser closes, the network drops, or heartbeats stop for more than 8 seconds, the Raspberry Pi automatically performs a safe stop. A physical power cutoff remains the final safeguard.</p></div>
+    </section>
+    <div class="event" id="eventText">Reading controller status…</div>
+  </main>
+
+  <dialog id="confirmDialog">
+    <div class="dialog-body">
+      <h3 id="dialogTitle">Confirm start</h3>
+      <p id="dialogDescription"></p>
+      <label class="check"><input id="safetyCheck" type="checkbox"><span>I confirm that the mechanism is clear, wiring is secure, motor power is correct, and the physical power cutoff is within reach.</span></label>
+      <div class="dialog-actions"><button class="secondary" id="cancelButton" type="button">Cancel</button><button class="confirm" id="confirmButton" type="button" disabled>Confirm and start</button></div>
+    </div>
+  </dialog>
+
+  <script>
+    const app = document.querySelector('#app');
+    const statusCard = document.querySelector('#statusCard');
+    const stateText = document.querySelector('#stateText');
+    const modeText = document.querySelector('#modeText');
+    const elapsedText = document.querySelector('#elapsedText');
+    const watchdogText = document.querySelector('#watchdogText');
+    const eventText = document.querySelector('#eventText');
+    const connection = document.querySelector('#connection');
+    const connectionText = document.querySelector('#connectionText');
+    const stopButton = document.querySelector('#stopButton');
+    const dialog = document.querySelector('#confirmDialog');
+    const safetyCheck = document.querySelector('#safetyCheck');
+    const confirmButton = document.querySelector('#confirmButton');
+    const ch2Slider = document.querySelector('#ch2Slider');
+    const ch4Slider = document.querySelector('#ch4Slider');
+    const ch2Value = document.querySelector('#ch2Value');
+    const ch4Value = document.querySelector('#ch4Value');
+    const steadyDescription = document.querySelector('#steadyDescription');
+    let selectedMode = null;
+    let lastStatus = null;
+    let busy = false;
+    let connected = false;
+
+    const modeNames = { steady: 'STEADY' };
+    function updateControlAvailability() {
+      const locked = !connected || Boolean(lastStatus?.running) || busy;
+      document.querySelectorAll('.mode').forEach(button => button.disabled = locked);
+      document.querySelectorAll('input[type="range"]').forEach(input => input.disabled = locked);
+    }
+    function setBusy(value) {
+      busy = value;
+      app.classList.toggle('busy', value);
+      updateControlAvailability();
+    }
+    function selectedSettings() {
+      return {
+        ch2_pct: Number(ch2Slider.value),
+        ch4_pct: Number(ch4Slider.value)
+      };
+    }
+    function modeDescription(mode) {
+      const { ch2_pct, ch4_pct } = selectedSettings();
+      return `STP2 will run at ${ch2_pct}% and STP4 at ${ch4_pct}%. Both start together and continue until Stop is pressed or the controller disconnects.`;
+    }
+    function updateSliderDisplay() {
+      const { ch2_pct, ch4_pct } = selectedSettings();
+      ch2Value.textContent = `${ch2_pct}%`;
+      ch4Value.textContent = `${ch4_pct}%`;
+      steadyDescription.textContent = modeDescription('steady');
+    }
+    function formatTime(total) {
+      total = Math.max(0, Number(total) || 0);
+      const m = Math.floor(total / 60).toString().padStart(2, '0');
+      const s = Math.floor(total % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+    function showConnection(ok) {
+      connected = ok;
+      connection.classList.toggle('online', ok);
+      connection.classList.toggle('offline', !ok);
+      connectionText.textContent = ok ? 'Controller online · live' : 'Disconnected · retrying';
+      updateControlAvailability();
+    }
+    function render(data) {
+      lastStatus = data;
+      showConnection(true);
+      statusCard.classList.toggle('running', data.running);
+      stateText.textContent = data.running ? 'RUNNING' : 'STOPPED';
+      modeText.textContent = data.running ? (modeNames[data.mode] || data.mode || 'Unknown') : 'None';
+      elapsedText.textContent = formatTime(data.elapsed_seconds);
+      watchdogText.textContent = data.watchdog_armed ? 'Active · 8 sec' : (data.running ? 'CLI start' : 'Standby');
+      eventText.textContent = data.last_error || data.last_event || '';
+      eventText.classList.toggle('error', Boolean(data.last_error));
+      updateControlAvailability();
+    }
+    async function api(path, options = {}) {
+      const response = await fetch(path, { cache: 'no-store', ...options });
+      const data = await response.json();
+      if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+    async function refresh() {
+      try { render(await api('/api/status')); }
+      catch (error) {
+        showConnection(false);
+        eventText.textContent = `Unable to reach controller: ${error.message}`;
+        eventText.classList.add('error');
+      }
+    }
+    async function heartbeat() {
+      if (!lastStatus?.watchdog_armed) return;
+      try {
+        const data = await api('/api/heartbeat', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' });
+        render(data);
+      } catch (error) { showConnection(false); }
+    }
+    async function stopMotor() {
+      if (busy) return;
+      setBusy(true);
+      eventText.textContent = 'Performing hardware-level stop…';
+      try {
+        render(await api('/api/stop', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' }));
+      } catch (error) {
+        eventText.textContent = `Stop failed: ${error.message}. Disconnect motor power now.`;
+        eventText.classList.add('error');
+      } finally { setBusy(false); await refresh(); }
+    }
+    function openConfirmation(mode) {
+      selectedMode = mode;
+      safetyCheck.checked = false;
+      confirmButton.disabled = true;
+      document.querySelector('#dialogTitle').textContent = `Confirm ${modeNames[mode]} start`;
+      document.querySelector('#dialogDescription').textContent = modeDescription(mode);
+      dialog.showModal();
+    }
+    async function startSelected() {
+      if (!selectedMode || !safetyCheck.checked || busy) return;
+      const mode = selectedMode;
+      const settings = selectedSettings();
+      dialog.close();
+      setBusy(true);
+      eventText.textContent = `Safety reset in progress; starting ${modeNames[mode]}…`;
+      try {
+        render(await api('/api/start', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({mode, safety_ack:true, ...settings}) }));
+      } catch (error) {
+        eventText.textContent = `Start failed: ${error.message}`;
+        eventText.classList.add('error');
+      } finally { setBusy(false); await refresh(); }
+    }
+
+    document.querySelectorAll('.mode').forEach(button => button.addEventListener('click', () => openConfirmation(button.dataset.mode)));
+    [ch2Slider, ch4Slider].forEach(input => input.addEventListener('input', updateSliderDisplay));
+    stopButton.addEventListener('click', stopMotor);
+    safetyCheck.addEventListener('change', () => confirmButton.disabled = !safetyCheck.checked);
+    confirmButton.addEventListener('click', startSelected);
+    document.querySelector('#cancelButton').addEventListener('click', () => dialog.close());
+    window.addEventListener('beforeunload', () => {
+      if (lastStatus?.watchdog_armed) navigator.sendBeacon('/api/stop', new Blob(['{}'], {type:'application/json'}));
+    });
+    setInterval(refresh, 1000);
+    setInterval(heartbeat, 2000);
+    updateSliderDisplay();
+    updateControlAvailability();
+    refresh();
+  </script>
+</body>
+</html>

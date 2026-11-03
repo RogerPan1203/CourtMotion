@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.run/
+.deploy.*/
+backup_slider_*/
+.DS_Store
