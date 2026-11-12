@@ -29,7 +29,7 @@ DEFAULT_SETTINGS = {
     "enabled_a": True, "enabled_b": True,
     "a_pct": 30.0, "b_pct": 30.0,
 }
-CHANNEL_OPTIONS = range(1, 7)
+CHANNEL_OPTIONS = range(1, 8)
 
 
 class ControlState:
@@ -138,7 +138,7 @@ def parse_settings(data):
     for name in ("channel_a", "channel_b"):
         raw = data.get(name, DEFAULT_SETTINGS[name])
         if type(raw) is not int or raw not in CHANNEL_OPTIONS:
-            raise ValueError(f"{name} must be a channel from 1 to 6")
+            raise ValueError(f"{name} must be a channel from 1 to 7")
         settings[name] = raw
     if settings["enabled_a"] and settings["enabled_b"] and settings["channel_a"] == settings["channel_b"]:
         raise ValueError("Choose two different channels")

@@ -25,8 +25,8 @@ def parse_args():
     if args.disable_a and args.disable_b:
         parser.error("turn on Motor A or Motor B")
     for name in ("channel_a", "channel_b"):
-        if not 1 <= getattr(args, name) <= 6:
-            parser.error(f"{name} must be between 1 and 6")
+        if not 1 <= getattr(args, name) <= 7:
+            parser.error(f"{name} must be between 1 and 7")
     if not args.disable_a and not args.disable_b and args.channel_a == args.channel_b:
         parser.error("choose two different channels")
     for name in ("a_pct", "b_pct"):

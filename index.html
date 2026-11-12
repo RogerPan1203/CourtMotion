@@ -97,12 +97,12 @@
     input[type="range"]:disabled { opacity: .4; cursor: not-allowed; }
     .slider-scale { display: flex; justify-content: space-between; margin-top: 7px; color: var(--muted); font-size: 10px; }
     .modes { display: grid; grid-template-columns: 1fr; gap: 14px; }
-    .mode { text-align: left; border: 1px solid var(--line); border-radius: 16px; background: rgba(12,35,23,.72); color: var(--text); padding: 18px; cursor: pointer; transition: border-color .15s, transform .1s, background .15s; }
+    .mode { text-align: left; border: 1px solid rgba(104,223,131,.52); border-radius: 16px; background: rgba(22,58,36,.8); color: var(--text); padding: 20px 22px; cursor: pointer; transition: border-color .15s, transform .1s, background .15s; }
     .mode:hover { border-color: var(--green); background: rgba(18,54,34,.86); transform: translateY(-1px); }
     .mode:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-    .mode-name { display: flex; align-items: center; justify-content: space-between; font-size: 19px; font-weight: 900; }
-    .mode-tag { color: #092212; background: var(--lime); font-size: 10px; padding: 5px 8px; border-radius: 999px; letter-spacing: .08em; }
-    .mode p { color: var(--muted); line-height: 1.55; font-size: 13px; margin: 10px 0 0; }
+    .mode-name { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 21px; font-weight: 900; }
+    .mode-arrow { color: var(--lime); font-size: 26px; line-height: 1; }
+    .mode p { color: var(--muted); line-height: 1.5; font-size: 14px; margin: 8px 0 0; }
     .safety { margin-top: 18px; padding: 18px 22px; display: flex; gap: 14px; align-items: flex-start; border-color: rgba(255,198,91,.35); background: rgba(61,43,10,.42); }
     .safety-icon { font-size: 23px; }
     .safety strong { color: var(--amber); display: block; margin-bottom: 5px; }
@@ -166,12 +166,12 @@
     </section>
 
     <section class="card controls">
-      <div class="section-title"><h2>Choose motors, ports and output</h2><span class="section-note">Turn on A, B or both · choose ports 1–6</span></div>
+      <div class="section-title"><h2>Choose motors, ports and output</h2><span class="section-note">Turn on A, B or both · choose ports 1–7</span></div>
       <div class="sliders">
         <div class="slider-control">
           <div class="motor-header"><strong>Motor A</strong><label class="motor-toggle"><input id="enableA" type="checkbox" checked><span id="enableAText">On</span></label></div>
           <label class="channel-picker" for="channelA">Motor A port
-            <select id="channelA"><option value="1">Port 1</option><option value="2" selected>Port 2</option><option value="3">Port 3</option><option value="4">Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option></select>
+            <select id="channelA"><option value="1">Port 1</option><option value="2" selected>Port 2</option><option value="3">Port 3</option><option value="4">Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option><option value="7">Port 7</option></select>
           </label>
           <label class="slider-head" for="aSlider"><span class="slider-name">Motor A output</span><output class="slider-value" id="aValue">30%</output></label>
           <input id="aSlider" type="range" min="0" max="100" step="1" value="30">
@@ -180,7 +180,7 @@
         <div class="slider-control">
           <div class="motor-header"><strong>Motor B</strong><label class="motor-toggle"><input id="enableB" type="checkbox" checked><span id="enableBText">On</span></label></div>
           <label class="channel-picker" for="channelB">Motor B port
-            <select id="channelB"><option value="1">Port 1</option><option value="2">Port 2</option><option value="3">Port 3</option><option value="4" selected>Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option></select>
+            <select id="channelB"><option value="1">Port 1</option><option value="2">Port 2</option><option value="3">Port 3</option><option value="4" selected>Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option><option value="7">Port 7</option></select>
           </label>
           <label class="slider-head" for="bSlider"><span class="slider-name">Motor B output</span><output class="slider-value" id="bValue">30%</output></label>
           <input id="bSlider" type="range" min="0" max="100" step="1" value="30">
@@ -190,8 +190,8 @@
       <div class="section-title"><h2>Start motors</h2><span class="section-note">Only switched-on motors run · safety confirmation required</span></div>
       <div class="modes">
         <button class="mode" data-mode="steady" type="button">
-          <span class="mode-name"><span id="startLabel">START PORT 2 + 4</span> <span class="mode-tag">CONTINUOUS</span></span>
-          <p id="steadyDescription">Both channels start together and stay at the selected outputs until Stop is pressed or the page disconnects.</p>
+          <span class="mode-name">START MOTORS <span class="mode-arrow" aria-hidden="true">→</span></span>
+          <p id="steadyDescription">A: Port 2 · 30% &nbsp;•&nbsp; B: Port 4 · 30%</p>
         </button>
       </div>
     </section>
@@ -236,7 +236,6 @@
     const bSlider = document.querySelector('#bSlider');
     const aValue = document.querySelector('#aValue');
     const bValue = document.querySelector('#bValue');
-    const startLabel = document.querySelector('#startLabel');
     const steadyDescription = document.querySelector('#steadyDescription');
     let selectedMode = null;
     let lastStatus = null;
@@ -250,8 +249,8 @@
     }
     function activePorts(settings) {
       const ports = [];
-      if (settings.enabled_a) ports.push(`A · Port ${settings.channel_a}`);
-      if (settings.enabled_b) ports.push(`B · Port ${settings.channel_b}`);
+      if (settings.enabled_a) ports.push(`A (Port ${settings.channel_a})`);
+      if (settings.enabled_b) ports.push(`B (Port ${settings.channel_b})`);
       return ports;
     }
     function updateControlAvailability() {
@@ -280,10 +279,10 @@
       const settings = selectedSettings();
       if (!settings.enabled_a && !settings.enabled_b) return 'Turn on Motor A or Motor B before starting.';
       if (!settingsValid(settings)) return 'Choose two different ports for A and B before starting.';
-      const active = [];
-      if (settings.enabled_a) active.push(`Motor A on Port ${settings.channel_a} at ${settings.a_pct}%`);
-      if (settings.enabled_b) active.push(`Motor B on Port ${settings.channel_b} at ${settings.b_pct}%`);
-      return `${active.join(' and ')} will run until Stop is pressed or the controller disconnects.`;
+      const parts = [];
+      parts.push(settings.enabled_a ? `A: Port ${settings.channel_a} · ${settings.a_pct}%` : 'A: Off');
+      parts.push(settings.enabled_b ? `B: Port ${settings.channel_b} · ${settings.b_pct}%` : 'B: Off');
+      return parts.join('  •  ');
     }
     function updateSliderDisplay() {
       const settings = selectedSettings();
@@ -291,7 +290,6 @@
       enableBText.textContent = settings.enabled_b ? 'On' : 'Off';
       aValue.textContent = settings.enabled_a ? `${settings.a_pct}%` : 'OFF';
       bValue.textContent = settings.enabled_b ? `${settings.b_pct}%` : 'OFF';
-      startLabel.textContent = `START ${activePorts(settings).join(' + ') || 'MOTORS'}`;
       steadyDescription.textContent = modeDescription('steady');
       updateControlAvailability();
     }
@@ -323,7 +321,7 @@
       statusCard.classList.toggle('running', data.running);
       stateText.textContent = data.running ? 'RUNNING' : 'STOPPED';
       modeText.textContent = data.running
-        ? `${modeNames[data.mode] || data.mode || 'Unknown'} · ${data.settings ? activePorts(data.settings).join(' + ') : 'CLI'}`
+        ? `${modeNames[data.mode] || data.mode || 'Unknown'} · ${data.settings ? activePorts(data.settings).join(', ') : 'CLI'}`
         : 'None';
       elapsedText.textContent = formatTime(data.elapsed_seconds);
       watchdogText.textContent = data.watchdog_armed ? 'Active · 8 sec' : (data.running ? 'CLI start' : 'Standby');
