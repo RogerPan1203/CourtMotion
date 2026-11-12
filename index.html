@@ -31,7 +31,7 @@
         linear-gradient(145deg, #06110c, #091711 55%, #040b08);
       color: var(--text);
     }
-    button { font: inherit; }
+    button, select { font: inherit; }
     .shell { width: min(1050px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 46px; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
     .brand { display: flex; align-items: center; gap: 14px; }
@@ -79,6 +79,9 @@
     .section-note { color: var(--muted); font-size: 12px; }
     .sliders { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
     .slider-control { display: block; border: 1px solid rgba(64,103,77,.65); border-radius: 15px; background: rgba(4,14,9,.48); padding: 15px; }
+    .channel-picker { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; color: var(--muted); font-size: 13px; }
+    .channel-picker select { min-width: 130px; padding: 9px 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
+    .channel-picker select:disabled { opacity: .5; cursor: not-allowed; }
     .slider-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
     .slider-name { font-size: 13px; font-weight: 800; }
     .slider-value { min-width: 54px; border-radius: 999px; background: rgba(104,223,131,.14); color: var(--green); padding: 5px 8px; text-align: center; font-size: 13px; font-weight: 900; }
@@ -155,23 +158,29 @@
     </section>
 
     <section class="card controls">
-      <div class="section-title"><h2>Set output</h2><span class="section-note">Sliders do not drive motors until Start is confirmed</span></div>
+      <div class="section-title"><h2>Choose channels and output</h2><span class="section-note">Choose two different ports, 1–6 · settings apply after Start</span></div>
       <div class="sliders">
-        <label class="slider-control" for="ch2Slider">
-          <span class="slider-head"><span class="slider-name">STP2 / Channel 2 · Stronger motor</span><output class="slider-value" id="ch2Value">30%</output></span>
-          <input id="ch2Slider" type="range" min="0" max="100" step="1" value="30">
-          <span class="slider-scale"><span>0%</span><span>100% max</span></span>
-        </label>
-        <label class="slider-control" for="ch4Slider">
-          <span class="slider-head"><span class="slider-name">STP4 / Channel 4</span><output class="slider-value" id="ch4Value">30%</output></span>
-          <input id="ch4Slider" type="range" min="0" max="100" step="1" value="30">
-          <span class="slider-scale"><span>0%</span><span>100% max</span></span>
-        </label>
+        <div class="slider-control">
+          <label class="channel-picker" for="channelA">Motor A port
+            <select id="channelA"><option value="1">Port 1</option><option value="2" selected>Port 2</option><option value="3">Port 3</option><option value="4">Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option></select>
+          </label>
+          <label class="slider-head" for="aSlider"><span class="slider-name">Motor A output</span><output class="slider-value" id="aValue">30%</output></label>
+          <input id="aSlider" type="range" min="0" max="100" step="1" value="30">
+          <div class="slider-scale"><span>0%</span><span>100% max</span></div>
+        </div>
+        <div class="slider-control">
+          <label class="channel-picker" for="channelB">Motor B port
+            <select id="channelB"><option value="1">Port 1</option><option value="2">Port 2</option><option value="3">Port 3</option><option value="4" selected>Port 4</option><option value="5">Port 5</option><option value="6">Port 6</option></select>
+          </label>
+          <label class="slider-head" for="bSlider"><span class="slider-name">Motor B output</span><output class="slider-value" id="bValue">30%</output></label>
+          <input id="bSlider" type="range" min="0" max="100" step="1" value="30">
+          <div class="slider-scale"><span>0%</span><span>100% max</span></div>
+        </div>
       </div>
       <div class="section-title"><h2>Start motors</h2><span class="section-note">Both channels start together · safety confirmation required</span></div>
       <div class="modes">
         <button class="mode" data-mode="steady" type="button">
-          <span class="mode-name">START STP2 + STP4 <span class="mode-tag">CONTINUOUS</span></span>
+          <span class="mode-name"><span id="startLabel">START PORT 2 + 4</span> <span class="mode-tag">CONTINUOUS</span></span>
           <p id="steadyDescription">Both channels start together and stay at the selected outputs until Stop is pressed or the page disconnects.</p>
         </button>
       </div>
@@ -207,10 +216,13 @@
     const dialog = document.querySelector('#confirmDialog');
     const safetyCheck = document.querySelector('#safetyCheck');
     const confirmButton = document.querySelector('#confirmButton');
-    const ch2Slider = document.querySelector('#ch2Slider');
-    const ch4Slider = document.querySelector('#ch4Slider');
-    const ch2Value = document.querySelector('#ch2Value');
-    const ch4Value = document.querySelector('#ch4Value');
+    const channelA = document.querySelector('#channelA');
+    const channelB = document.querySelector('#channelB');
+    const aSlider = document.querySelector('#aSlider');
+    const bSlider = document.querySelector('#bSlider');
+    const aValue = document.querySelector('#aValue');
+    const bValue = document.querySelector('#bValue');
+    const startLabel = document.querySelector('#startLabel');
     const steadyDescription = document.querySelector('#steadyDescription');
     let selectedMode = null;
     let lastStatus = null;
@@ -220,8 +232,10 @@
     const modeNames = { steady: 'STEADY' };
     function updateControlAvailability() {
       const locked = !connected || Boolean(lastStatus?.running) || busy;
-      document.querySelectorAll('.mode').forEach(button => button.disabled = locked);
+      const duplicateChannels = channelA.value === channelB.value;
+      document.querySelectorAll('.mode').forEach(button => button.disabled = locked || duplicateChannels);
       document.querySelectorAll('input[type="range"]').forEach(input => input.disabled = locked);
+      [channelA, channelB].forEach(input => input.disabled = locked);
     }
     function setBusy(value) {
       busy = value;
@@ -230,19 +244,24 @@
     }
     function selectedSettings() {
       return {
-        ch2_pct: Number(ch2Slider.value),
-        ch4_pct: Number(ch4Slider.value)
+        channel_a: Number(channelA.value),
+        channel_b: Number(channelB.value),
+        a_pct: Number(aSlider.value),
+        b_pct: Number(bSlider.value)
       };
     }
     function modeDescription(mode) {
-      const { ch2_pct, ch4_pct } = selectedSettings();
-      return `STP2 will run at ${ch2_pct}% and STP4 at ${ch4_pct}%. Both start together and continue until Stop is pressed or the controller disconnects.`;
+      const { channel_a, channel_b, a_pct, b_pct } = selectedSettings();
+      if (channel_a === channel_b) return 'Choose two different ports before starting.';
+      return `Port ${channel_a} will run at ${a_pct}% and Port ${channel_b} at ${b_pct}%. Both start together and continue until Stop is pressed or the controller disconnects.`;
     }
     function updateSliderDisplay() {
-      const { ch2_pct, ch4_pct } = selectedSettings();
-      ch2Value.textContent = `${ch2_pct}%`;
-      ch4Value.textContent = `${ch4_pct}%`;
+      const { channel_a, channel_b, a_pct, b_pct } = selectedSettings();
+      aValue.textContent = `${a_pct}%`;
+      bValue.textContent = `${b_pct}%`;
+      startLabel.textContent = `START PORT ${channel_a} + ${channel_b}`;
       steadyDescription.textContent = modeDescription('steady');
+      updateControlAvailability();
     }
     function formatTime(total) {
       total = Math.max(0, Number(total) || 0);
@@ -259,10 +278,19 @@
     }
     function render(data) {
       lastStatus = data;
+      if (data.running && data.settings) {
+        channelA.value = String(data.settings.channel_a);
+        channelB.value = String(data.settings.channel_b);
+        aSlider.value = String(data.settings.a_pct);
+        bSlider.value = String(data.settings.b_pct);
+        updateSliderDisplay();
+      }
       showConnection(true);
       statusCard.classList.toggle('running', data.running);
       stateText.textContent = data.running ? 'RUNNING' : 'STOPPED';
-      modeText.textContent = data.running ? (modeNames[data.mode] || data.mode || 'Unknown') : 'None';
+      modeText.textContent = data.running
+        ? `${modeNames[data.mode] || data.mode || 'Unknown'} · Port ${data.settings?.channel_a ?? '?'} + ${data.settings?.channel_b ?? '?'}`
+        : 'None';
       elapsedText.textContent = formatTime(data.elapsed_seconds);
       watchdogText.textContent = data.watchdog_armed ? 'Active · 8 sec' : (data.running ? 'CLI start' : 'Standby');
       eventText.textContent = data.last_error || data.last_event || '';
@@ -302,6 +330,7 @@
       } finally { setBusy(false); await refresh(); }
     }
     function openConfirmation(mode) {
+      if (!connected || lastStatus?.running || channelA.value === channelB.value) return;
       selectedMode = mode;
       safetyCheck.checked = false;
       confirmButton.disabled = true;
@@ -310,7 +339,7 @@
       dialog.showModal();
     }
     async function startSelected() {
-      if (!selectedMode || !safetyCheck.checked || busy) return;
+      if (!selectedMode || !safetyCheck.checked || busy || !connected || lastStatus?.running || channelA.value === channelB.value) return;
       const mode = selectedMode;
       const settings = selectedSettings();
       dialog.close();
@@ -325,7 +354,8 @@
     }
 
     document.querySelectorAll('.mode').forEach(button => button.addEventListener('click', () => openConfirmation(button.dataset.mode)));
-    [ch2Slider, ch4Slider].forEach(input => input.addEventListener('input', updateSliderDisplay));
+    [aSlider, bSlider, channelA, channelB].forEach(input => input.addEventListener('input', updateSliderDisplay));
+    [channelA, channelB].forEach(input => input.addEventListener('change', updateSliderDisplay));
     stopButton.addEventListener('click', stopMotor);
     safetyCheck.addEventListener('change', () => confirmButton.disabled = !safetyCheck.checked);
     confirmButton.addEventListener('click', startSelected);

@@ -24,11 +24,8 @@ TENNIS = Path("/home/pi/.local/bin/tennis")
 HEARTBEAT_TIMEOUT = 8.0
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
-DEFAULT_SETTINGS = {"ch2_pct": 30.0, "ch4_pct": 30.0}
-SETTING_LIMITS = {
-    "ch2_pct": (0.0, 100.0),
-    "ch4_pct": (0.0, 100.0),
-}
+DEFAULT_SETTINGS = {"channel_a": 2, "channel_b": 4, "a_pct": 30.0, "b_pct": 30.0}
+CHANNEL_OPTIONS = range(1, 7)
 
 
 class ControlState:
@@ -127,7 +124,15 @@ def status_payload():
 
 def parse_settings(data):
     settings = {}
-    for name, default in DEFAULT_SETTINGS.items():
+    for name in ("channel_a", "channel_b"):
+        raw = data.get(name, DEFAULT_SETTINGS[name])
+        if type(raw) is not int or raw not in CHANNEL_OPTIONS:
+            raise ValueError(f"{name} must be a channel from 1 to 6")
+        settings[name] = raw
+    if settings["channel_a"] == settings["channel_b"]:
+        raise ValueError("Choose two different channels")
+    for name in ("a_pct", "b_pct"):
+        default = DEFAULT_SETTINGS[name]
         raw = data.get(name, default)
         if isinstance(raw, bool):
             raise ValueError(f"Invalid value for {name}")
@@ -135,7 +140,7 @@ def parse_settings(data):
             value = float(raw)
         except (TypeError, ValueError) as exc:
             raise ValueError(f"Invalid value for {name}") from exc
-        minimum, maximum = SETTING_LIMITS[name]
+        minimum, maximum = 0.0, 100.0
         if not math.isfinite(value) or not minimum <= value <= maximum:
             raise ValueError(f"{name} must be between {minimum:g} and {maximum:g}")
         settings[name] = round(value, 1)
@@ -170,10 +175,14 @@ def start_motor(mode, settings):
     stop_motor("Pre-start safety reset completed")
     output = run_tennis(
         mode,
-        "--ch2-pct",
-        format_number(settings["ch2_pct"]),
-        "--ch4-pct",
-        format_number(settings["ch4_pct"]),
+        "--channel-a",
+        str(settings["channel_a"]),
+        "--channel-b",
+        str(settings["channel_b"]),
+        "--a-pct",
+        format_number(settings["a_pct"]),
+        "--b-pct",
+        format_number(settings["b_pct"]),
     )
     now = time.monotonic()
     with STATE.lock:
@@ -182,8 +191,8 @@ def start_motor(mode, settings):
         STATE.started_at = time.time()
         STATE.active_settings = dict(settings)
         STATE.last_event = (
-            f"{mode.upper()} started: ch2 {settings['ch2_pct']:g}%, "
-            f"ch4 {settings['ch4_pct']:g}%; running until stopped"
+            f"{mode.upper()} started: ch{settings['channel_a']} {settings['a_pct']:g}%, "
+            f"ch{settings['channel_b']} {settings['b_pct']:g}%; running until stopped"
         )
         STATE.last_error = None
     return output

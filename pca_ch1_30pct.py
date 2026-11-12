@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run PCA9685 channels 2 and 4 together with validated command-line settings.
+Run two selected PCA9685 channels together with validated command-line settings.
 
 Both channels stay on together until the process is stopped. Defaults are
 channel 2 at 30% and channel 4 at 30%.
@@ -15,21 +15,28 @@ from adafruit_pca9685 import PCA9685
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ch2-pct", type=float, default=30.0)
-    parser.add_argument("--ch4-pct", type=float, default=30.0)
+    parser.add_argument("--channel-a", type=int, default=2)
+    parser.add_argument("--channel-b", type=int, default=4)
+    parser.add_argument("--a-pct", "--ch2-pct", dest="a_pct", type=float, default=30.0)
+    parser.add_argument("--b-pct", "--ch4-pct", dest="b_pct", type=float, default=30.0)
     args = parser.parse_args()
-    if not 0 <= args.ch2_pct <= 100:
-        parser.error("channel 2 must be between 0 and 100 percent")
-    if not 0 <= args.ch4_pct <= 100:
-        parser.error("channel 4 must be between 0 and 100 percent")
+    for name in ("channel_a", "channel_b"):
+        if not 1 <= getattr(args, name) <= 6:
+            parser.error(f"{name} must be between 1 and 6")
+    if args.channel_a == args.channel_b:
+        parser.error("choose two different channels")
+    for name in ("a_pct", "b_pct"):
+        value = getattr(args, name)
+        if not 0 <= value <= 100:
+            parser.error(f"{name} must be between 0 and 100 percent")
     return args
 
 
 def main():
     args = parse_args()
     duties = {
-        2: int(65535 * args.ch2_pct / 100),
-        4: int(65535 * args.ch4_pct / 100),
+        args.channel_a: int(65535 * args.a_pct / 100),
+        args.channel_b: int(65535 * args.b_pct / 100),
     }
     i2c = busio.I2C(SCL, SDA)
     pca = PCA9685(i2c)
@@ -48,8 +55,8 @@ def main():
     for ch, duty in duties.items():
         pca.channels[ch].duty_cycle = duty
     print(
-        f"Channel 2 set to {args.ch2_pct:g}% and channel 4 set to "
-        f"{args.ch4_pct:g}% together until stopped."
+        f"Channel {args.channel_a} set to {args.a_pct:g}% and channel "
+        f"{args.channel_b} set to {args.b_pct:g}% together until stopped."
     )
 
     try:
@@ -58,10 +65,10 @@ def main():
     except KeyboardInterrupt:
         print("\nStopping…")
     finally:
-        for ch in duties:
+        for ch in range(16):
             pca.channels[ch].duty_cycle = 0
         pca.deinit()
-        print("Channels 2 and 4 off.")
+        print("All channels off.")
 
 
 if __name__ == "__main__":

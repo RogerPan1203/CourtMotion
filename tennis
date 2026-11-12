@@ -19,14 +19,15 @@ mkdir -p "$RUN_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  tennis on | steady [options] Hold channels 2 and 4 until stopped
+  tennis on | steady [options] Hold two selected channels until stopped
   tennis off | stop       Safely stop the running mode
   tennis status           Show current state
   tennis log              Show the latest output
   tennis watch            Show live court (Ctrl+C safely stops motor)
 
 Options passed to steady:
-  --ch2-pct 0..100  --ch4-pct 0..100
+  --channel-a 1..6  --channel-b 1..6  (different ports; default 2 and 4)
+  --a-pct 0..100   --b-pct 0..100   (default 30% each)
 EOF
 }
 
