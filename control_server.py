@@ -24,7 +24,11 @@ TENNIS = Path("/home/pi/.local/bin/tennis")
 HEARTBEAT_TIMEOUT = 8.0
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
-DEFAULT_SETTINGS = {"channel_a": 2, "channel_b": 4, "a_pct": 30.0, "b_pct": 30.0}
+DEFAULT_SETTINGS = {
+    "channel_a": 2, "channel_b": 4,
+    "enabled_a": True, "enabled_b": True,
+    "a_pct": 30.0, "b_pct": 30.0,
+}
 CHANNEL_OPTIONS = range(1, 7)
 
 
@@ -124,12 +128,19 @@ def status_payload():
 
 def parse_settings(data):
     settings = {}
+    for name in ("enabled_a", "enabled_b"):
+        raw = data.get(name, DEFAULT_SETTINGS[name])
+        if type(raw) is not bool:
+            raise ValueError(f"{name} must be true or false")
+        settings[name] = raw
+    if not (settings["enabled_a"] or settings["enabled_b"]):
+        raise ValueError("Turn on Motor A or Motor B before starting")
     for name in ("channel_a", "channel_b"):
         raw = data.get(name, DEFAULT_SETTINGS[name])
         if type(raw) is not int or raw not in CHANNEL_OPTIONS:
             raise ValueError(f"{name} must be a channel from 1 to 6")
         settings[name] = raw
-    if settings["channel_a"] == settings["channel_b"]:
+    if settings["enabled_a"] and settings["enabled_b"] and settings["channel_a"] == settings["channel_b"]:
         raise ValueError("Choose two different channels")
     for name in ("a_pct", "b_pct"):
         default = DEFAULT_SETTINGS[name]
@@ -173,7 +184,7 @@ def start_motor(mode, settings):
     if mode != "steady":
         raise ValueError("Only steady mode is available")
     stop_motor("Pre-start safety reset completed")
-    output = run_tennis(
+    args = [
         mode,
         "--channel-a",
         str(settings["channel_a"]),
@@ -183,17 +194,24 @@ def start_motor(mode, settings):
         format_number(settings["a_pct"]),
         "--b-pct",
         format_number(settings["b_pct"]),
-    )
+    ]
+    if not settings["enabled_a"]:
+        args.append("--disable-a")
+    if not settings["enabled_b"]:
+        args.append("--disable-b")
+    output = run_tennis(*args)
     now = time.monotonic()
     with STATE.lock:
         STATE.watchdog_armed = True
         STATE.last_heartbeat = now
         STATE.started_at = time.time()
         STATE.active_settings = dict(settings)
-        STATE.last_event = (
-            f"{mode.upper()} started: ch{settings['channel_a']} {settings['a_pct']:g}%, "
-            f"ch{settings['channel_b']} {settings['b_pct']:g}%; running until stopped"
-        )
+        active = []
+        if settings["enabled_a"]:
+            active.append(f"A ch{settings['channel_a']} {settings['a_pct']:g}%")
+        if settings["enabled_b"]:
+            active.append(f"B ch{settings['channel_b']} {settings['b_pct']:g}%")
+        STATE.last_event = f"{mode.upper()} started: {', '.join(active)}; running until stopped"
         STATE.last_error = None
     return output
 

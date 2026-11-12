@@ -26,8 +26,9 @@ Usage:
   tennis watch            Show live court (Ctrl+C safely stops motor)
 
 Options passed to steady:
-  --channel-a 1..6  --channel-b 1..6  (different ports; default 2 and 4)
+  --channel-a 1..6  --channel-b 1..6  (different when both on; default 2 and 4)
   --a-pct 0..100   --b-pct 0..100   (default 30% each)
+  --disable-a      --disable-b      (run only the other motor)
 EOF
 }
 

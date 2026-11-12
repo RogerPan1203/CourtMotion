@@ -26,12 +26,16 @@ def parse_args():
     parser.add_argument("--channel-b", type=int, default=4)
     parser.add_argument("--a-pct", "--ch2-pct", dest="a_pct", type=float, default=30.0)
     parser.add_argument("--b-pct", "--ch4-pct", dest="b_pct", type=float, default=30.0)
+    parser.add_argument("--disable-a", action="store_true")
+    parser.add_argument("--disable-b", action="store_true")
     parser.add_argument("--duration", type=float, default=3.0)
     args = parser.parse_args()
+    if args.disable_a and args.disable_b:
+        parser.error("turn on Motor A or Motor B")
     for name in ("channel_a", "channel_b"):
         if not 1 <= getattr(args, name) <= 6:
             parser.error(f"{name} must be between 1 and 6")
-    if args.channel_a == args.channel_b:
+    if not args.disable_a and not args.disable_b and args.channel_a == args.channel_b:
         parser.error("choose two different channels")
     for name in ("a_pct", "b_pct"):
         if not 0 <= getattr(args, name) <= 30:
@@ -57,10 +61,11 @@ def sweep(pca, max_duties, start_frac, end_frac, duration):
 
 def main():
     args = parse_args()
-    max_duties = {
-        args.channel_a: int(65535 * args.a_pct / 100),
-        args.channel_b: int(65535 * args.b_pct / 100),
-    }
+    max_duties = {}
+    if not args.disable_a:
+        max_duties[args.channel_a] = int(65535 * args.a_pct / 100)
+    if not args.disable_b:
+        max_duties[args.channel_b] = int(65535 * args.b_pct / 100)
     i2c = busio.I2C(SCL, SDA)
     pca = PCA9685(i2c)
     pca.frequency = 1000
@@ -68,23 +73,23 @@ def main():
     for ch in range(16):
         pca.channels[ch].duty_cycle = 0
 
-    print(f"Synchronized sweep, channels {args.channel_a} and {args.channel_b} together:")
-    print(f"  ch{args.channel_a} max = {max_duties[args.channel_a]} ({args.a_pct:g}%)")
-    print(f"  ch{args.channel_b} max = {max_duties[args.channel_b]} ({args.b_pct:g}%)")
+    print("Synchronized sweep:")
+    for ch, duty in max_duties.items():
+        print(f"  ch{ch} max = {duty}")
     print(f"  ramp up in {args.duration:g}s, ramp down in {args.duration:g}s")
     print("Ctrl+C to stop.\n")
 
     try:
         while True:
             all_off(pca)
-            print(f"{time.strftime('%H:%M:%S')}  ch{args.channel_a} + ch{args.channel_b}  sweep UP")
+            print(f"{time.strftime('%H:%M:%S')}  selected channels sweep UP")
             sweep(pca, max_duties, 0.0, 1.0, args.duration)
 
-            print(f"{time.strftime('%H:%M:%S')}  ch{args.channel_a} + ch{args.channel_b}  sweep DOWN")
+            print(f"{time.strftime('%H:%M:%S')}  selected channels sweep DOWN")
             sweep(pca, max_duties, 1.0, 0.0, args.duration)
 
             all_off(pca)
-            print(f"{time.strftime('%H:%M:%S')}  ch{args.channel_a} + ch{args.channel_b}  OFF")
+            print(f"{time.strftime('%H:%M:%S')}  selected channels OFF")
     except KeyboardInterrupt:
         print("\nStopping…")
     finally:
